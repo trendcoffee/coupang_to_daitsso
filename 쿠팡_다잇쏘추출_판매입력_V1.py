@@ -108,9 +108,9 @@ st.set_page_config(
 )
 
 st.title("📦 쿠팡 주문건 변환기")
-st.markdown("### 1. 다잇쏘 주문건을 이카운트 업로드 파일로 변환합니다.")
+st.markdown("### 1. 다잇쏘 주문건 추출과 ERP웹자료올리기로 변환합니다.")
 st.markdown("---")
-st.info("⚠️ 매핑 정보는 'mapping.txt' 파일에 저장됩니다. 파일을 수정하면 즉시 반영됩니다.")
+st.info("매핑 정보는 'mapping.txt' 파일에 있습니다.")
 
 # 파일 업로더
 uploaded_file = st.file_uploader(
@@ -144,9 +144,9 @@ if uploaded_file:
 
             original_excel = to_excel(df_daitsso_original)
             col2.download_button(
-                label="📁 다잇쏘 주문건 원본 다운로드",
+                label="📁 다잇쏘 주문건 다운로드",
                 data=original_excel,
-                file_name="다잇쏘_주문건_원본.xlsx",
+                file_name="다잇쏘_주문건.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="original_download"
             )
@@ -156,3 +156,4 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"파일 처리 중 오류가 발생했습니다: {e}")
+
