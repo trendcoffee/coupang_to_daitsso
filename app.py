@@ -106,10 +106,11 @@ st.markdown("---")
 
 # 매핑 불러오기
 mapping_dict = load_mapping()
-st.write("불러온 매핑 데이터 (일부):", dict(list(mapping_dict.items())[:5]))
 
 if not mapping_dict:
     st.warning("⚠️ 매핑 데이터를 불러오지 못했습니다. 그래도 파일 업로드 기능은 사용할 수 있습니다.")
+else:
+    st.success(f"✅ 매핑 데이터 {len(mapping_dict)}개 불러옴")
 
 # 파일 업로더 (드래그앤드롭 지원)
 uploaded = st.file_uploader("📂 쿠팡 주문건 Excel 업로드 (.xlsx)", type=["xlsx"])
@@ -163,17 +164,19 @@ if st.button("➕ 매핑 추가"):
             sh = gc.open_by_key(sheet_id)
             ws = sh.worksheet(worksheet_name)
 
-            # 시트에 새로운 매핑 추가
+            # 무조건 새 줄 추가
             ws.append_row([new_option, new_code])
-
-            st.success(f"✅ 매핑 추가됨: {new_option} → {new_code}")
+            st.success(f"✅ 새로운 매핑 추가됨: {new_option} → {new_code}")
 
             # 캐시 갱신
             load_mapping.clear()
             mapping_dict = load_mapping()
 
-            st.write("📊 최신 매핑 데이터 (일부):", dict(list(mapping_dict.items())[:5]))
-
+            # 전체 미리보기 (스크롤 가능)
+            if mapping_dict:
+                df_preview = pd.DataFrame(list(mapping_dict.items()), columns=["옵션ID", "ERP 품목코드"])
+                st.markdown("📊 **최신 매핑 데이터 전체 보기 (스크롤 가능)**")
+                st.dataframe(df_preview, height=200)  # 약 6행 보여주고 스크롤
         except Exception as e:
             st.error("❌ 매핑 추가 중 오류 발생")
             st.exception(e)
