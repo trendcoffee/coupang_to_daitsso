@@ -135,9 +135,9 @@ if uploaded:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
             c2.download_button(
-                "📁 다잇쏘 주문건 필터 다운로드",
+                "📁 다잇쏘 쿠팡 주문건 다운로드",
                 data=to_excel(df_daitsso),
-                file_name="다잇쏘_주문건_필터링결과.xlsx",
+                file_name="다잇쏘_주문건.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
@@ -182,3 +182,4 @@ if st.button("➕ 매핑 추가"):
             st.exception(e)
     else:
         st.warning("⚠️ 옵션ID와 ERP 품목코드를 모두 입력하세요.")
+
