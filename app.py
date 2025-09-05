@@ -30,14 +30,16 @@ def load_mapping():
 
         records = ws.get_all_records()
         mapping = {
-            str(row.get("옵션ID", "")).strip(): str(row.get("ERP 품목코드") or "").strip()
+            str(row.get("옵션ID", "")).strip(): str(
+                row.get("ERP 품목코드") or ""
+            ).strip()
             for row in records
             if row.get("옵션ID") and row.get("ERP 품목코드")
         }
         return mapping
     except Exception as e:
         st.error("❌ 구글 시트 로드 실패")
-        st.exception(e)  # 전체 에러 traceback 표시
+        st.exception(e)
         return {}
 
 # ------------------ 2. 이카운트 변환 함수 ------------------
@@ -116,16 +118,11 @@ if uploaded:
         df = pd.read_excel(uploaded, dtype=str)
         st.success("✅ 파일 업로드 완료!")
 
+        # 매핑된 옵션ID만 필터링 → 매핑되지 않은 건 자동 무시
         df_daitsso = df[df["옵션ID"].isin(mapping_dict.keys())].copy()
 
-        # 매핑 안된 옵션ID 경고 표시
-        missing = df[~df["옵션ID"].isin(mapping_dict.keys())]
-        if not missing.empty:
-            st.warning(f"⚠️ 매핑되지 않은 옵션ID가 {len(missing)}건 있습니다. Google Sheet에 추가해주세요.")
-            st.dataframe(missing)
-
         if df_daitsso.empty:
-            st.warning("❗ 다잇쏘 관련 주문건이 없습니다.")
+            st.warning("❗ 매핑된 다잇쏘 주문건이 없습니다.")
         else:
             result = build_ecount_sales_upload(df_daitsso, mapping_dict)
 
@@ -148,4 +145,4 @@ if uploaded:
 
     except Exception as e:
         st.error("❌ 변환 중 오류 발생")
-        st.exception(e)  # 상세 에러 표시
+        st.exception(e)
