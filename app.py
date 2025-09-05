@@ -9,7 +9,6 @@ st.set_page_config(page_title="쿠팡 주문건 변환기", page_icon="📦")
 # ------------------ 1. Google Sheets 매핑 불러오기 ------------------
 @st.cache_resource
 def get_gspread_client():
-    # st.secrets에 있는 gcp_service_account 블록 읽기
     creds = Credentials.from_service_account_info(
         dict(st.secrets["gcp_service_account"]),
         scopes=[
@@ -39,7 +38,8 @@ def load_mapping():
         }
         return mapping
     except Exception as e:
-        st.error(f"❌ 구글 시트 로드 실패: {e}")
+        st.error("❌ 구글 시트 로드 실패")
+        st.exception(e)  # 전체 에러 traceback 표시
         return {}
 
 # ------------------ 2. 이카운트 변환 함수 ------------------
@@ -104,12 +104,15 @@ st.title("📦 쿠팡 주문건 변환기")
 st.markdown("Google Sheets 매핑을 사용하여 쿠팡 주문건을 ERP 업로드용으로 변환합니다.")
 st.markdown("---")
 
+# 매핑 불러오기
 mapping_dict = load_mapping()
-if not mapping_dict:
-    st.stop()
-st.success(f"매핑 데이터 로드 완료 (총 {len(mapping_dict)}건).")
+st.write("불러온 매핑 데이터 (일부):", dict(list(mapping_dict.items())[:5]))  # 앞 5개만 표시
 
-uploaded = st.file_uploader("쿠팡 주문건 Excel 업로드 (.xlsx)", type=["xlsx"])
+if not mapping_dict:
+    st.warning("⚠️ 매핑 데이터를 불러오지 못했습니다. 그래도 파일 업로드 기능은 사용할 수 있습니다.")
+
+# 파일 업로더 (드래그앤드롭 지원)
+uploaded = st.file_uploader("📂 쿠팡 주문건 Excel 업로드 (.xlsx)", type=["xlsx"])
 if uploaded:
     try:
         df = pd.read_excel(uploaded, dtype=str)
@@ -139,4 +142,5 @@ if uploaded:
             st.dataframe(result)
 
     except Exception as e:
-        st.error(f"❌ 변환 중 오류: {e}")
+        st.error("❌ 변환 중 오류 발생")
+        st.exception(e)  # 상세 에러 표시
