@@ -20,6 +20,7 @@ def get_gspread_client():
 
 @st.cache_data(ttl=600)
 def load_mapping():
+    """변환용 매핑 dict (중복시 마지막 값만 유지)"""
     try:
         gc = get_gspread_client()
         sheet_id = st.secrets["GSHEETS_ID"]
@@ -38,16 +39,33 @@ def load_mapping():
         }
         return mapping
     except Exception as e:
-        st.error("❌ 구글 시트 로드 실패")
+        st.error("❌ 구글 시트 로드 실패 (매핑 dict)")
         st.exception(e)
         return {}
+
+def load_full_sheet():
+    """UI 미리보기를 위한 DataFrame (중복 포함)"""
+    try:
+        gc = get_gspread_client()
+        sheet_id = st.secrets["GSHEETS_ID"]
+        worksheet_name = st.secrets.get("GSHEETS_WORKSHEET", "Sheet1")
+
+        sh = gc.open_by_key(sheet_id)
+        ws = sh.worksheet(worksheet_name)
+        records = ws.get_all_records()
+        return pd.DataFrame(records)
+    except Exception as e:
+        st.error("❌ 구글 시트 로드 실패 (전체 DataFrame)")
+        st.exception(e)
+        return pd.DataFrame()
 
 # ------------------ 2. 이카운트 변환 함수 ------------------
 def build_ecount_sales_upload(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     df = df.copy().fillna("")
 
-    pay = pd.to_numeric(df["결제액"].astype(str).str.replace(",", ""), errors="coerce").fillna(0)
-    qty = pd.to_numeric(df["구매수(수량)"], errors="coerce").fillna(0)
+    # 결제액, 수량 계산
+    pay = pd.to_numeric(df.get("결제액", ""), errors="coerce").fillna(0)
+    qty = pd.to_numeric(df.get("구매수(수량)", ""), errors="coerce").fillna(0)
 
     unit = (pay / qty.replace(0, pd.NA)).fillna(0)
     total = (unit * qty).round().fillna(0)
@@ -57,7 +75,7 @@ def build_ecount_sales_upload(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     item_code = df["옵션ID"].map(mapping).fillna("")
 
     res = pd.DataFrame({
-        "일자": pd.to_datetime(df["주문시 출고예정일"], errors="coerce").dt.strftime("%Y%m%d").fillna(""),
+        "일자": pd.to_datetime(df.get("주문시 출고예정일", ""), errors="coerce").dt.strftime("%Y%m%d").fillna(""),
         "순번": "",
         "거래처코드": "",
         "거래처명": "쿠팡 주식회사",
@@ -77,7 +95,7 @@ def build_ecount_sales_upload(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
         "공급가액": supply,
         "부가세": vat,
         "수집처": "쿠팡",
-        "수취인": df["수취인이름"],
+        "수취인": df.get("수취인이름", ""),
         "운송장번호": "",
         "적요": "",
         "생산전표생성": "Y",
@@ -108,7 +126,7 @@ st.markdown("---")
 mapping_dict = load_mapping()
 
 if not mapping_dict:
-    st.warning("⚠️ 매핑 데이터를 불러오지 못했습니다. 그래도 파일 업로드 기능은 사용할 수 있습니다.")
+    st.warning("⚠️ 매핑 데이터를 불러오지 못했습니다.")
 else:
     st.success(f"✅ 매핑 데이터 {len(mapping_dict)}개 불러옴")
 
@@ -119,7 +137,7 @@ if uploaded:
         df = pd.read_excel(uploaded, dtype=str)
         st.success("✅ 파일 업로드 완료!")
 
-        # 매핑된 옵션ID만 필터링 → 매핑되지 않은 건 자동 무시
+        # 매핑된 옵션ID만 필터링
         df_daitsso = df[df["옵션ID"].isin(mapping_dict.keys())].copy()
 
         if df_daitsso.empty:
@@ -135,9 +153,9 @@ if uploaded:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
             c2.download_button(
-                "📁 다잇쏘 쿠팡 주문건 다운로드",
+                "📁 다잇쏘 주문건 필터 다운로드",
                 data=to_excel(df_daitsso),
-                file_name="다잇쏘_주문건.xlsx",
+                file_name="다잇쏘_주문건_필터링결과.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
@@ -168,18 +186,16 @@ if st.button("➕ 매핑 추가"):
             ws.append_row([new_option, new_code])
             st.success(f"✅ 새로운 매핑 추가됨: {new_option} → {new_code}")
 
-            # 캐시 갱신
+            # 캐시 갱신 후 전체 미리보기 (중복 포함)
             load_mapping.clear()
-            mapping_dict = load_mapping()
+            df_preview = load_full_sheet()
 
-            # 전체 미리보기 (스크롤 가능)
-            if mapping_dict:
-                df_preview = pd.DataFrame(list(mapping_dict.items()), columns=["옵션ID", "ERP 품목코드"])
+            if not df_preview.empty:
                 st.markdown("📊 **최신 매핑 데이터 전체 보기 (스크롤 가능)**")
-                st.dataframe(df_preview, height=200)  # 약 6행 보여주고 스크롤
+                st.dataframe(df_preview, height=200)
+
         except Exception as e:
             st.error("❌ 매핑 추가 중 오류 발생")
             st.exception(e)
     else:
         st.warning("⚠️ 옵션ID와 ERP 품목코드를 모두 입력하세요.")
-
