@@ -30,11 +30,9 @@ def load_mapping():
 
         records = ws.get_all_records()
         mapping = {
-            str(row.get("옵션ID", "")).strip(): str(
-                row.get("이플렉스코드") or row.get("ERP코드") or ""
-            ).strip()
+            str(row.get("옵션ID", "")).strip(): str(row.get("ERP 품목코드") or "").strip()
             for row in records
-            if row.get("옵션ID") and (row.get("이플렉스코드") or row.get("ERP코드"))
+            if row.get("옵션ID") and row.get("ERP 품목코드")
         }
         return mapping
     except Exception as e:
@@ -119,6 +117,13 @@ if uploaded:
         st.success("✅ 파일 업로드 완료!")
 
         df_daitsso = df[df["옵션ID"].isin(mapping_dict.keys())].copy()
+
+        # 매핑 안된 옵션ID 경고 표시
+        missing = df[~df["옵션ID"].isin(mapping_dict.keys())]
+        if not missing.empty:
+            st.warning(f"⚠️ 매핑되지 않은 옵션ID가 {len(missing)}건 있습니다. Google Sheet에 추가해주세요.")
+            st.dataframe(missing)
+
         if df_daitsso.empty:
             st.warning("❗ 다잇쏘 관련 주문건이 없습니다.")
         else:
